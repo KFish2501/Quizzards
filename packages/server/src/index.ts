@@ -172,6 +172,8 @@ async function main(): Promise<void> {
   if (restored > 0) console.log(`[quizzards] restored ${restored} room(s) from ${DATA_FILE}`);
 
   http.listen(PORT, () => {
+    // The host supervisor prints its own banner; don't say it all twice.
+    if (process.env.QUIZZARDS_QUIET === '1') return;
     console.log(`[quizzards] scoreboard server listening on http://localhost:${PORT}`);
     for (const address of lanAddresses()) {
       console.log(`[quizzards] reachable on your network at http://${address}:${PORT}`);
