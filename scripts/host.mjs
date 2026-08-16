@@ -30,6 +30,8 @@ const IS_WINDOWS = process.platform === 'win32';
 let server = null;
 let updating = false;
 let shuttingDown = false;
+/** Remote commit we've already complained about, so one problem warns once. */
+let warnedAbout = null;
 
 const stamp = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -182,13 +184,25 @@ async function checkForUpdates() {
   updating = true;
   try {
     const subject = await capture('git', ['log', '-1', '--format=%s', `origin/${branch}`]);
-    log(`Update found: ${subject ?? remote.slice(0, 7)}`);
+    const firstTimeSeeing = warnedAbout !== remote;
+    if (firstTimeSeeing) log(`Update found: ${subject ?? remote.slice(0, 7)}`);
 
-    const pulled = await run('git', ['pull', '--ff-only', 'origin', branch]);
+    const pulled = await run('git', ['pull', '--ff-only', 'origin', branch], {
+      quiet: !firstTimeSeeing,
+    });
     if (pulled.code !== 0) {
-      log('ERROR: could not fast-forward — you may have local changes. Skipping this update.');
+      // A pull that can't fast-forward won't start working on its own, so say
+      // what to do once rather than repeating the same error all evening.
+      if (firstTimeSeeing) {
+        warnedAbout = remote;
+        log('ERROR: cannot update automatically — this folder has changes of its');
+        log('       own, or the branch history was rewritten upstream.');
+        log('       Fix with:  git status   then   git reset --hard origin/' + branch);
+        log('       Until then the current version keeps running.');
+      }
       return;
     }
+    warnedAbout = null;
 
     if (!(await ensureDependencies())) return;
     if (!(await build())) {
