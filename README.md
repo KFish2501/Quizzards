@@ -27,9 +27,14 @@ viewer link sees every change instantly, on any device.
 
 ### First time — do this once
 
-1. Go to **[setup.bat](https://github.com/KFish2501/Quizzards/raw/main/setup.bat)** and save the file
-   (your browser may warn about a `.bat` file — keep it).
-2. **Double-click `setup.bat`.** Click **Yes** to any Windows permission pop-up.
+1. Click the green **Code** button at the top of
+   [this page](https://github.com/KFish2501/Quizzards) → **Download ZIP**.
+2. Open your Downloads, **right-click the ZIP → Extract All**.
+3. Inside the extracted folder, **double-click `setup.bat`**. Click **More info → Run anyway** if
+   Windows warns, and **Yes** to any permission pop-up.
+
+That downloaded copy is only used to get started — setup puts the real one in your user folder and
+on your Desktop.
 
 That's it. It installs what's needed, downloads the scoreboard, puts a **Quizzards** shortcut on
 your Desktop, and starts it.
