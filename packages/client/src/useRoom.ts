@@ -28,6 +28,37 @@ export interface RoomConnection {
 }
 
 const HOST_TOKEN_PREFIX = 'quizzards:host:';
+const BACKUP_PREFIX = 'quizzards:backup:';
+
+/**
+ * The host's browser keeps the last board it saw. Free cloud hosting has no
+ * persistent disk, so if the service restarts overnight this is what puts the
+ * scores back rather than retyping them.
+ */
+export function saveBackup(code: string, state: RoomState): void {
+  try {
+    localStorage.setItem(BACKUP_PREFIX + code, JSON.stringify(state));
+  } catch {
+    /* storage full or blocked — the board still works, there's just no backup */
+  }
+}
+
+export function readBackup(code: string): RoomState | null {
+  try {
+    const raw = localStorage.getItem(BACKUP_PREFIX + code);
+    return raw ? (JSON.parse(raw) as RoomState) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearBackup(code: string): void {
+  try {
+    localStorage.removeItem(BACKUP_PREFIX + code);
+  } catch {
+    /* nothing to do */
+  }
+}
 
 export function readHostToken(code: string): string | undefined {
   try {
@@ -110,6 +141,12 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
       socketRef.current = null;
     };
   }, [code, asViewer]);
+
+  // Only the controlling browser keeps a backup — a viewer's copy would be a
+  // stale snapshot of someone else's board.
+  useEffect(() => {
+    if (code && state && canControl) saveBackup(code, state);
+  }, [code, state, canControl]);
 
   const dispatch = useCallback((action: BoardAction) => {
     socketRef.current?.emit('action', { action });

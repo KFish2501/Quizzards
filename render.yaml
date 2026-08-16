@@ -1,0 +1,24 @@
+# Render Blueprint — deploys the scoreboard as a single always-addressable
+# web service. Import this repo at https://render.com/deploy and Render reads
+# this file; the only thing to type is the host password.
+services:
+  - type: web
+    name: quizzards
+    runtime: node
+    plan: free
+    region: frankfurt
+    # devDependencies are needed to compile TypeScript, and Render sets
+    # NODE_ENV=production, which would otherwise skip them.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      # Render prompts for this when you deploy. It's what lets you change
+      # scores; everyone else can only watch.
+      - key: QUIZZARDS_HOST_PASSWORD
+        sync: false

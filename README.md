@@ -23,7 +23,38 @@ viewer link sees every change instantly, on any device.
 - **Full screen**, for the big screen at the front of the room.
 - **Survives a restart.** Rooms are mirrored to disk, so a server hiccup doesn't lose the scores.
 
-## Running it on your Windows PC
+## Putting it online (one permanent link)
+
+This gives you a web address like `https://quizzards.onrender.com` that never changes and works
+from anywhere. Your PC doesn't need to be on.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/KFish2501/Quizzards)
+
+1. Click the button above.
+2. Sign in with GitHub and allow Render to see this repo.
+3. It asks for one thing: **QUIZZARDS_HOST_PASSWORD**. Type any password you'll remember — this is
+   what lets you change scores.
+4. Click **Apply**. First build takes about five minutes.
+
+Render shows your address at the top of the page when it's done. That's the link — bookmark it, and
+send it to players. **It stays the same forever.**
+
+Whenever I push a change, Render rebuilds and deploys it automatically.
+
+### Two things about the free plan
+
+- **It falls asleep after 15 minutes of nobody using it.** The next person to open the link waits
+  about 50 seconds while it wakes up. Open the link yourself a minute before the quiz starts and
+  everyone else arrives to an awake board.
+- **A restart can lose the scores**, because free hosting has no permanent storage. This is covered:
+  your browser keeps a copy of any board you're hosting. If the board has vanished, open its link
+  and you'll be offered **Put this board back** — enter your host password and the teams, scores and
+  roster all come back exactly as they were.
+
+## Running it on your own PC instead
+
+You don't need this if you deployed to Render above — it's for running the scoreboard on your own
+machine, on your own wifi or through a temporary internet link.
 
 ### First time — do this once
 
@@ -87,8 +118,8 @@ it in `START.bat` next to `QUIZZARDS_HOST_PASSWORD=`.
 The internet link is a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/).
 It needs no account and changes nothing on your router. Two things to know:
 
-- **The address changes every time you start.** Send the fresh link each quiz night. A stable
-  address needs a free Cloudflare account and a named tunnel — ask and it can be set up.
+- **The address changes every time you start.** If you want one permanent link, deploy to Render
+  instead — see [Putting it online](#putting-it-online-one-permanent-link) above.
 - **Your PC is still the host.** If it sleeps or the window closes, the link stops working.
 
 Set `QUIZZARDS_PUBLIC=0` in `START.bat` if you'd rather keep it to your own wifi.

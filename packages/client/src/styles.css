@@ -637,6 +637,49 @@ body {
   font-size: 24px;
 }
 
+/* ---------- restore ---------- */
+
+.restore {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 4px;
+  max-width: 420px;
+}
+
+.restore__lead {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.restore__teams {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.restore__teams li {
+  background: var(--surface-hi);
+  border: 1px solid var(--border-hi);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+
+.restore__controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
 /* ---------- toast ---------- */
 
 .toast {
