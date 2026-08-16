@@ -15,6 +15,14 @@ title Quizzards - Live Quiz Scoreboard
 color 0B
 
 rem ---- Settings ----------------------------------------------
+rem Give players a link that works from anywhere, not just your wifi.
+rem Set to 0 if you only ever want people in the same building.
+set "QUIZZARDS_PUBLIC=1"
+
+rem Your host password. Leave this blank and one is made for you and
+rem shown in this window. Put your own here if you'd rather choose.
+set "QUIZZARDS_HOST_PASSWORD="
+
 set "PORT=4000"
 set "QUIZZARDS_AUTOUPDATE=1"
 set "QUIZZARDS_UPDATE_INTERVAL=120"

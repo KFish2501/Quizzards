@@ -41,26 +41,57 @@ your Desktop, and starts it.
 A black window opens and shows you this:
 
 ```
-==========================================================
+==============================================================
    QUIZZARDS IS RUNNING
-==========================================================
+==============================================================
 
-   YOU (this PC):    http://localhost:4000
-   PLAYERS (wifi):   http://192.168.1.42:4000
+   YOU (this PC):     http://localhost:4000
+   PLAYERS anywhere:  https://brave-quiz-night.trycloudflare.com
+   Players on wifi:   http://192.168.1.42:4000
 
    The players' link is copied — just paste it to them.
 
+   HOST PASSWORD:     kvv7rq3mza
+   Keep this to yourself. It is what lets you change scores.
+
    Leave this window open. Closing it stops the quiz.
    Updates install themselves while you run.
-==========================================================
+==============================================================
 ```
 
-Your browser opens automatically. Send the **players' link** to anyone on your wifi — it's already
-on your clipboard, so just paste it into WhatsApp or wherever. They get a view-only board; only you
-can change scores.
+Your browser opens automatically. Send the **players anywhere** link to whoever you like — it works
+over the internet, so people don't have to be in the building. It's already on your clipboard, so
+just paste it into WhatsApp or wherever.
 
 **Leave the black window open** for the whole quiz. Closing it stops everything. Scores are saved,
 so if it does get closed, opening it again picks up where you left off.
+
+### Who can do what
+
+| | Sees live scores | Changes scores |
+| --- | :---: | :---: |
+| **You** (the host, with the password) | yes | yes |
+| **Everyone else** with the link | yes | no |
+
+Anyone with the link watches the board update live and can do nothing else — the buttons aren't
+just hidden, the server refuses the change. To take charge from another device (a second laptop,
+or your phone), open the link, click **Take control**, and enter the host password from the black
+window. That browser stays in control from then on.
+
+The password is made for you the first time you run it and doesn't change. It lives in
+`.quizzards\host-password.txt` inside the Quizzards folder if you forget it. To pick your own, put
+it in `START.bat` next to `QUIZZARDS_HOST_PASSWORD=`.
+
+### The public link, in detail
+
+The internet link is a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/).
+It needs no account and changes nothing on your router. Two things to know:
+
+- **The address changes every time you start.** Send the fresh link each quiz night. A stable
+  address needs a free Cloudflare account and a named tunnel — ask and it can be set up.
+- **Your PC is still the host.** If it sleeps or the window closes, the link stops working.
+
+Set `QUIZZARDS_PUBLIC=0` in `START.bat` if you'd rather keep it to your own wifi.
 
 ### Updates happen by themselves
 
@@ -72,7 +103,9 @@ version you already have, so nothing breaks mid-quiz.
 
 | What you see | What to do |
 | --- | --- |
-| Players can't open the link | Windows Firewall — click **Allow** when it asks about Node.js. If you missed it, restart the PC and try again. |
+| Players can't open the wifi link | Windows Firewall — click **Allow** when it asks about Node.js. If you missed it, restart the PC and try again. (The internet link is unaffected by this.) |
+| No internet link appeared | It falls back to the wifi link and says so. Usually a blocked network; try again, or use the wifi link. |
+| You can't change scores | Click **Take control** and enter the host password from the black window. |
 | "Node.js isn't installed" | Run `setup.bat` again. |
 | The window closed by itself | Just open the Desktop shortcut again. Your scores are saved. |
 | Something else | Screenshot the black window and send it on. |
@@ -84,6 +117,8 @@ folder, pick **Edit**, and change the number near the top.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
+| `QUIZZARDS_PUBLIC` | `1` | Set to `0` for a wifi-only board with no internet link |
+| `QUIZZARDS_HOST_PASSWORD` | generated | Your own host password, if you don't want the generated one |
 | `PORT` | `4000` | Port the scoreboard is served on |
 | `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop updates while it runs |
 | `QUIZZARDS_UPDATE_INTERVAL` | `120` | Seconds between update checks |

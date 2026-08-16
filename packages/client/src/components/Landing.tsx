@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_TEAMS, normalizeRoomCode } from '@quizzards/shared';
 import { saveHostToken } from '../useRoom.js';
 
@@ -9,10 +9,27 @@ interface LandingProps {
 export function Landing({ onOpen }: LandingProps) {
   const [code, setCode] = useState('quiz-night');
   const [teams, setTeams] = useState(5);
+  const [password, setPassword] = useState('');
+  const [passwordRequired, setPasswordRequired] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const slug = normalizeRoomCode(code);
+
+  // Only ask for a password when the server actually wants one, so a LAN-only
+  // setup stays as simple as it was.
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/health')
+      .then((response) => response.json())
+      .then((data: { passwordRequired?: boolean }) => {
+        if (!cancelled) setPasswordRequired(Boolean(data.passwordRequired));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const host = async () => {
     setBusy(true);
@@ -21,7 +38,7 @@ export function Landing({ onOpen }: LandingProps) {
       const response = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: slug, teams }),
+        body: JSON.stringify({ code: slug, teams, password }),
       });
       const data = (await response.json()) as { code?: string; hostToken?: string; error?: string };
       if (!response.ok || !data.code || !data.hostToken) {
@@ -75,7 +92,24 @@ export function Landing({ onOpen }: LandingProps) {
             />
           </label>
 
-          <button type="submit" className="btn btn--accent btn--lg" disabled={!slug || busy}>
+          {passwordRequired && (
+            <label className="field">
+              <span className="field__label">Host password</span>
+              <input
+                className="input"
+                type="password"
+                value={password}
+                placeholder="From the black window"
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn--accent btn--lg"
+            disabled={!slug || busy || (passwordRequired && !password)}
+          >
             {busy ? 'Opening…' : 'Host a board'}
           </button>
         </form>

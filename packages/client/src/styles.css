@@ -366,6 +366,26 @@ body {
   white-space: nowrap;
 }
 
+/* ---------- host login ---------- */
+
+.host-login {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.host-login .input {
+  width: 165px;
+}
+
+.host-login__error {
+  color: var(--negative);
+  font-size: 13px;
+  flex-basis: 100%;
+  text-align: right;
+}
+
 /* ---------- roster ---------- */
 
 .roster {

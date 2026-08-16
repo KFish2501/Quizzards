@@ -11,7 +11,7 @@ export interface ServerToClientEvents {
 
 export interface ClientToServerEvents {
   join: (
-    payload: { code: string; hostToken?: string },
+    payload: { code: string; hostToken?: string; password?: string },
     ack: (result: { ok: true; data: JoinResult } | { ok: false; error: string }) => void,
   ) => void;
   action: (payload: { action: BoardAction }) => void;
