@@ -34,7 +34,7 @@ set "REPO=https://github.com/KFish2501/Quizzards.git"
 
 rem ---------------------------------------------------------------- Node.js
 echo.
-echo   [1/4] Checking Node.js...
+echo   [1/5] Checking Node.js...
 where node >nul 2>nul
 if not errorlevel 1 goto node_ok
 
@@ -50,7 +50,7 @@ echo         Node.js is ready.
 
 rem -------------------------------------------------------------------- Git
 echo.
-echo   [2/4] Checking Git...
+echo   [2/5] Checking Git...
 where git >nul 2>nul
 if not errorlevel 1 goto git_ok
 
