@@ -1,6 +1,10 @@
 # Render Blueprint — deploys the scoreboard as a single always-addressable
-# web service. Import this repo at https://render.com/deploy and Render reads
-# this file; the only thing to type is the host password.
+# web service.
+#
+# NOTE: Blueprints require a PAID Render workspace and will ask for card
+# details. For free hosting, create the service by hand instead (New > Web
+# Service) using the settings in the README — this file is kept for anyone on a
+# paid workspace, and as a record of the correct build settings.
 services:
   - type: web
     name: quizzards
