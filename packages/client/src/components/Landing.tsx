@@ -3,7 +3,7 @@ import { MAX_TEAMS, normalizeRoomCode } from '@quizzards/shared';
 import { saveHostToken } from '../useRoom.js';
 
 interface LandingProps {
-  onOpen: (code: string) => void;
+  onOpen: (code: string, asViewer: boolean) => void;
 }
 
 export function Landing({ onOpen }: LandingProps) {
@@ -16,8 +16,7 @@ export function Landing({ onOpen }: LandingProps) {
 
   const slug = normalizeRoomCode(code);
 
-  // Only ask for a password when the server actually wants one, so a LAN-only
-  // setup stays as simple as it was.
+  // Only ask for a password when the server actually wants one.
   useEffect(() => {
     let cancelled = false;
     void fetch('/api/health')
@@ -45,7 +44,7 @@ export function Landing({ onOpen }: LandingProps) {
         throw new Error(data.error ?? 'Could not open that board.');
       }
       saveHostToken(data.code, data.hostToken);
-      onOpen(data.code);
+      onOpen(data.code, false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not reach the scoreboard server.');
     } finally {
@@ -57,87 +56,94 @@ export function Landing({ onOpen }: LandingProps) {
     <main className="page page--centered">
       <div className="landing">
         <h1 className="title">Live Quiz Scoreboard</h1>
-        <p className="subtitle">
-          Open a board, put it on the big screen, and adjust scores as the night runs. Everyone with
-          the viewer link sees each change instantly.
-        </p>
+        <p className="subtitle">Live team scores, on everyone's screen at once.</p>
 
-        <form
-          className="landing__form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (slug && !busy) void host();
-          }}
-        >
-          <label className="field">
-            <span className="field__label">Room code</span>
-            <input
-              className="input"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              placeholder="quiz-night"
-              aria-describedby="code-hint"
-            />
-          </label>
+        <label className="field landing__code">
+          <span className="field__label">Room code</span>
+          <input
+            className="input"
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            placeholder="quiz-night"
+          />
+        </label>
 
-          <label className="field field--narrow">
-            <span className="field__label">Teams</span>
-            <input
-              className="input"
-              type="number"
-              min={1}
-              max={MAX_TEAMS}
-              value={teams}
-              onChange={(event) => setTeams(Number(event.target.value))}
-            />
-          </label>
+        <div className="choices">
+          <section className="choice choice--primary">
+            <h2 className="choice__title">Watching the quiz</h2>
+            <p className="choice__body">
+              See scores update live. Nothing to set up, and you can't change anything by accident.
+            </p>
+            <button
+              type="button"
+              className="btn btn--accent btn--lg choice__action"
+              disabled={!slug}
+              onClick={() => onOpen(slug, true)}
+            >
+              Watch scores
+            </button>
+          </section>
 
-          {passwordRequired && (
-            <label className="field">
-              <span className="field__label">Host password</span>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                placeholder="From the black window"
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-          )}
+          <section className="choice">
+            <h2 className="choice__title">Running the quiz</h2>
+            <p className="choice__body">You'll need the host password to change scores.</p>
 
-          <button
-            type="submit"
-            className="btn btn--accent btn--lg"
-            disabled={!slug || busy || (passwordRequired && !password)}
-          >
-            {busy ? 'Opening…' : 'Host a board'}
-          </button>
-        </form>
+            <form
+              className="choice__form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (slug && !busy) void host();
+              }}
+            >
+              <div className="choice__row">
+                <label className="field field--narrow">
+                  <span className="field__label">Teams</span>
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    max={MAX_TEAMS}
+                    value={teams}
+                    onChange={(event) => setTeams(Number(event.target.value))}
+                  />
+                </label>
 
-        <p id="code-hint" className="muted small">
+                {passwordRequired && (
+                  <label className="field">
+                    <span className="field__label">Host password</span>
+                    <input
+                      className="input"
+                      type="password"
+                      value={password}
+                      placeholder="From the black window"
+                      onChange={(event) => setPassword(event.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn--lg choice__action"
+                disabled={!slug || busy || (passwordRequired && !password)}
+              >
+                {busy ? 'Opening…' : 'Host this board'}
+              </button>
+            </form>
+          </section>
+        </div>
+
+        {error && <p className="error">{error}</p>}
+
+        <p className="muted small">
           {slug ? (
             <>
-              Your board will live at <code>/b/{slug}</code>. Reopening the same code keeps its
-              scores.
+              This board lives at <code>/b/{slug}</code>. Reopening the same code keeps its scores.
             </>
           ) : (
             'Enter a code made of letters, numbers or hyphens.'
           )}
         </p>
-
-        <p className="muted small">
-          Joining as a spectator?{' '}
-          <button
-            type="button"
-            className="linklike"
-            onClick={() => slug && onOpen(slug)}
-            disabled={!slug}
-          >
-            Open “{slug || '…'}” read-only
-          </button>
-        </p>
-
-        {error && <p className="error">{error}</p>}
       </div>
     </main>
   );
