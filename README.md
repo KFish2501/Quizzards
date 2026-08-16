@@ -23,14 +23,150 @@ viewer link sees every change instantly, on any device.
 - **Full screen**, for the big screen at the front of the room.
 - **Survives a restart.** Rooms are mirrored to disk, so a server hiccup doesn't lose the scores.
 
-## Putting it online (one permanent link)
+## Running it on your Windows PC
 
-This gives you a web address like `https://quizzards.onrender.com` that never changes and works
-from anywhere. Your PC doesn't need to be on.
+### First time — do this once
 
-> **Don't use Render's "Blueprint" option or a deploy button.** Blueprints need a paid Render
-> workspace and will ask for card details. Creating the service by hand, as below, stays on the
-> free plan.
+1. Go to **[setup.bat](https://github.com/KFish2501/Quizzards/raw/main/setup.bat)** and save the file
+   (your browser may warn about a `.bat` file — keep it).
+2. **Double-click `setup.bat`.** Click **Yes** to any Windows permission pop-up.
+
+That's it. It installs what's needed, downloads the scoreboard, puts a **Quizzards** shortcut on
+your Desktop, and starts it.
+
+### Every time after that
+
+**Double-click the Quizzards shortcut on your Desktop.**
+
+A black window opens and shows you this:
+
+```
+==============================================================
+   QUIZZARDS IS RUNNING
+==============================================================
+
+   YOU (this PC):     http://localhost:4000
+   PLAYERS anywhere:  https://kyle-pc.tail9f2c.ts.net
+   Players on wifi:   http://192.168.1.42:4000
+
+   The players' link is copied — just paste it to them.
+   This link is permanent — it will be the same next time.
+
+   HOST PASSWORD:     kvv7rq3mza
+   Keep this to yourself. It is what lets you change scores.
+
+   Leave this window open. Closing it stops the quiz.
+   Updates install themselves while you run.
+==============================================================
+```
+
+Your browser opens automatically. Send the **players anywhere** link to whoever you like — it works
+over the internet, so people don't have to be in the building. It's already on your clipboard, so
+just paste it into WhatsApp or wherever.
+
+**Leave the black window open** for the whole quiz. Closing it stops everything. Scores are saved,
+so if it does get closed, opening it again picks up where you left off.
+
+### Letting someone else run the quiz
+
+Give them the link and the host password. That's it — they open the link on their own phone or
+laptop, click **Take control**, type the password, and they're running the scoreboard.
+
+They need **no account, no GitHub, no access to this repository and nothing installed**. The
+password works purely through the web page. Their browser remembers it, so they only type it once
+even if they reload.
+
+You can both host at the same time — changes from either of you show up for the other instantly.
+When you want them to stop, change `QUIZZARDS_HOST_PASSWORD` and restart; their control ends at
+the next reload.
+
+One thing to be aware of: the password is per *server*, not per *board*. Anyone you give it to can
+control any board on your scoreboard, not just tonight's.
+
+### Who can do what
+
+| | Sees live scores | Changes scores |
+| --- | :---: | :---: |
+| **Anyone with the host password** | yes | yes |
+| **Everyone else** with the link | yes | no |
+
+Anyone with the link watches the board update live and can do nothing else — the buttons aren't
+just hidden, the server refuses the change. To take charge from another device (a second laptop,
+or your phone), open the link, click **Take control**, and enter the host password from the black
+window. That browser stays in control from then on.
+
+The password is made for you the first time you run it and doesn't change. It lives in
+`.quizzards\host-password.txt` inside the Quizzards folder if you forget it. To pick your own, put
+it in `START.bat` next to `QUIZZARDS_HOST_PASSWORD=`.
+
+### The public link, in detail
+
+`setup.bat` installs [Tailscale](https://tailscale.com/), which is what gives you a **permanent**
+web address — something like `https://kyle-pc.tail9f2c.ts.net`. It's free, asks for no card, and
+visitors see a normal HTTPS page with no warning screen and no sign-in.
+
+Sign in to Tailscale once (with Google or GitHub) when setup opens it. The first time you use the
+link, Tailscale may ask you to switch on its "Funnel" feature for your account — if so, the black
+window prints the exact link to click.
+
+You can change what kind of link you get with `QUIZZARDS_LINK` in `START.bat`:
+
+| Value | What you get |
+| --- | --- |
+| `permanent` | Same address every time, via Tailscale. **Default.** |
+| `temporary` | A new address each start, via Cloudflare. Nothing to install. |
+| `off` | Your wifi only, no internet link. |
+
+If Tailscale isn't ready for any reason, it falls back to a temporary link automatically and says
+so, rather than leaving you with nothing.
+
+**Your PC is the host.** If it sleeps or you close the window, the link stops working until you
+start it again.
+
+### Updates happen by themselves
+
+Every time you start it, and every couple of minutes while it runs, it fetches the latest version
+and installs it. You don't have to do anything. If an update ever fails, it keeps running the
+version you already have, so nothing breaks mid-quiz.
+
+### If something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| Players can't open the wifi link | Windows Firewall — click **Allow** when it asks about Node.js. If you missed it, restart the PC and try again. (The internet link is unaffected by this.) |
+| No internet link appeared | It falls back to the wifi link and says so. Usually a blocked network; try again, or use the wifi link. |
+| You can't change scores | Click **Take control** and enter the host password from the black window. |
+| "Node.js isn't installed" | Run `setup.bat` again. |
+| The window closed by itself | Just open the Desktop shortcut again. Your scores are saved. |
+| Something else | Screenshot the black window and send it on. |
+
+### Settings
+
+You almost certainly don't need these. To change one, right-click `START.bat` in the Quizzards
+folder, pick **Edit**, and change the number near the top.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `QUIZZARDS_LINK` | `permanent` | `permanent`, `temporary` or `off` — see above |
+| `QUIZZARDS_HOST_PASSWORD` | generated | Your own host password, if you don't want the generated one |
+| `PORT` | `4000` | Port the scoreboard is served on |
+| `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop updates while it runs |
+| `QUIZZARDS_UPDATE_INTERVAL` | `120` | Seconds between update checks |
+| `QUIZZARDS_OPEN_BROWSER` | `1` | Set to `0` to not open a browser on startup |
+
+## Hosting it in the cloud instead (optional)
+
+**You don't need this.** The setup above already gives you a permanent link. This section is only
+if you'd rather your PC weren't involved at all, so the board is up even with your machine off.
+
+> **Heads up on cost:** Render now asks for card details during signup, even for free services, and
+> its Blueprint flow requires a paid workspace. If you hit that wall, stick with the Tailscale setup
+> above, or use a host that takes the included `Dockerfile` —
+> [Hugging Face Spaces](https://huggingface.co/spaces) has a free Docker tier that asks for no card
+> (choose *Docker* as the Space SDK and set `QUIZZARDS_HOST_PASSWORD` as a Space secret).
+
+If you do have a Render account, create the service **by hand** — not via a Blueprint or deploy
+button, which are the paid path.
 
 1. Sign up at **[render.com](https://render.com/)** with your GitHub account.
 2. Click **New** (top right) → **Web Service**.
@@ -78,110 +214,6 @@ cloud hosting entirely and run it from your own PC — see below.
   your browser keeps a copy of any board you're hosting. If the board has vanished, open its link
   and you'll be offered **Put this board back** — enter your host password and the teams, scores and
   roster all come back exactly as they were.
-
-## Running it on your own PC instead
-
-You don't need this if you deployed to Render above — it's for running the scoreboard on your own
-machine, on your own wifi or through a temporary internet link.
-
-### First time — do this once
-
-1. Go to **[setup.bat](https://github.com/KFish2501/Quizzards/raw/main/setup.bat)** and save the file
-   (your browser may warn about a `.bat` file — keep it).
-2. **Double-click `setup.bat`.** Click **Yes** to any Windows permission pop-up.
-
-That's it. It installs what's needed, downloads the scoreboard, puts a **Quizzards** shortcut on
-your Desktop, and starts it.
-
-### Every time after that
-
-**Double-click the Quizzards shortcut on your Desktop.**
-
-A black window opens and shows you this:
-
-```
-==============================================================
-   QUIZZARDS IS RUNNING
-==============================================================
-
-   YOU (this PC):     http://localhost:4000
-   PLAYERS anywhere:  https://brave-quiz-night.trycloudflare.com
-   Players on wifi:   http://192.168.1.42:4000
-
-   The players' link is copied — just paste it to them.
-
-   HOST PASSWORD:     kvv7rq3mza
-   Keep this to yourself. It is what lets you change scores.
-
-   Leave this window open. Closing it stops the quiz.
-   Updates install themselves while you run.
-==============================================================
-```
-
-Your browser opens automatically. Send the **players anywhere** link to whoever you like — it works
-over the internet, so people don't have to be in the building. It's already on your clipboard, so
-just paste it into WhatsApp or wherever.
-
-**Leave the black window open** for the whole quiz. Closing it stops everything. Scores are saved,
-so if it does get closed, opening it again picks up where you left off.
-
-### Who can do what
-
-| | Sees live scores | Changes scores |
-| --- | :---: | :---: |
-| **You** (the host, with the password) | yes | yes |
-| **Everyone else** with the link | yes | no |
-
-Anyone with the link watches the board update live and can do nothing else — the buttons aren't
-just hidden, the server refuses the change. To take charge from another device (a second laptop,
-or your phone), open the link, click **Take control**, and enter the host password from the black
-window. That browser stays in control from then on.
-
-The password is made for you the first time you run it and doesn't change. It lives in
-`.quizzards\host-password.txt` inside the Quizzards folder if you forget it. To pick your own, put
-it in `START.bat` next to `QUIZZARDS_HOST_PASSWORD=`.
-
-### The public link, in detail
-
-The internet link is a [Cloudflare quick tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/).
-It needs no account and changes nothing on your router. Two things to know:
-
-- **The address changes every time you start.** If you want one permanent link, deploy to Render
-  instead — see [Putting it online](#putting-it-online-one-permanent-link) above.
-- **Your PC is still the host.** If it sleeps or the window closes, the link stops working.
-
-Set `QUIZZARDS_PUBLIC=0` in `START.bat` if you'd rather keep it to your own wifi.
-
-### Updates happen by themselves
-
-Every time you start it, and every couple of minutes while it runs, it fetches the latest version
-and installs it. You don't have to do anything. If an update ever fails, it keeps running the
-version you already have, so nothing breaks mid-quiz.
-
-### If something goes wrong
-
-| What you see | What to do |
-| --- | --- |
-| Players can't open the wifi link | Windows Firewall — click **Allow** when it asks about Node.js. If you missed it, restart the PC and try again. (The internet link is unaffected by this.) |
-| No internet link appeared | It falls back to the wifi link and says so. Usually a blocked network; try again, or use the wifi link. |
-| You can't change scores | Click **Take control** and enter the host password from the black window. |
-| "Node.js isn't installed" | Run `setup.bat` again. |
-| The window closed by itself | Just open the Desktop shortcut again. Your scores are saved. |
-| Something else | Screenshot the black window and send it on. |
-
-### Settings
-
-You almost certainly don't need these. To change one, right-click `START.bat` in the Quizzards
-folder, pick **Edit**, and change the number near the top.
-
-| Setting | Default | Meaning |
-| --- | --- | --- |
-| `QUIZZARDS_PUBLIC` | `1` | Set to `0` for a wifi-only board with no internet link |
-| `QUIZZARDS_HOST_PASSWORD` | generated | Your own host password, if you don't want the generated one |
-| `PORT` | `4000` | Port the scoreboard is served on |
-| `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop updates while it runs |
-| `QUIZZARDS_UPDATE_INTERVAL` | `120` | Seconds between update checks |
-| `QUIZZARDS_OPEN_BROWSER` | `1` | Set to `0` to not open a browser on startup |
 
 ## Developing
 
