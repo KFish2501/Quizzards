@@ -7,6 +7,7 @@ import {
 } from '@quizzards/shared';
 import { useRoom } from '../useRoom.js';
 import { EditableText } from './EditableText.js';
+import { HostLogin } from './HostLogin.js';
 import { RosterPanel } from './RosterPanel.js';
 import { TeamCard } from './TeamCard.js';
 import { Toolbar } from './Toolbar.js';
@@ -91,6 +92,9 @@ export function Scoreboard({ code, forceViewer }: ScoreboardProps) {
         <div className="page__badges">
           <span className="pill">Room: {state.code}</span>
           {!editable && <span className="pill pill--muted">View only</span>}
+          {!editable && !forceViewer && room.passwordRequired && (
+            <HostLogin onSubmit={room.authenticate} />
+          )}
         </div>
       </header>
 

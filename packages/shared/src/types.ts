@@ -58,4 +58,11 @@ export interface JoinResult {
   canControl: boolean;
   /** Whether an undo step is currently available. */
   canUndo: boolean;
+  /**
+   * Returned only when control was just granted by password, so the browser can
+   * remember it and skip the prompt next time.
+   */
+  hostToken?: string;
+  /** True when the server is password-protected, so the UI can offer to log in. */
+  passwordRequired?: boolean;
 }

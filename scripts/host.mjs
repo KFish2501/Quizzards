@@ -12,21 +12,27 @@
  * updater tries again on the next cycle.
  */
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ensureCloudflared, startTunnel } from './tunnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STATE_DIR = join(ROOT, '.quizzards');
 const LOCK_HASH_FILE = join(STATE_DIR, 'installed-lock.sha1');
+const PASSWORD_FILE = join(STATE_DIR, 'host-password.txt');
 
 const PORT = process.env.PORT ?? '4000';
 const AUTO_UPDATE = process.env.QUIZZARDS_AUTOUPDATE !== '0';
 const INTERVAL_SECONDS = Math.max(30, Number(process.env.QUIZZARDS_UPDATE_INTERVAL ?? 120));
+const PUBLIC_LINK = process.env.QUIZZARDS_PUBLIC === '1';
 const IS_WINDOWS = process.platform === 'win32';
 
+let publicUrl = null;
+let tunnel = null;
+let hostPassword = '';
 let server = null;
 let updating = false;
 let shuttingDown = false;
@@ -67,6 +73,28 @@ function lanAddresses() {
     .map((nic) => nic.address);
 }
 
+/**
+ * The host password. Uses whatever is configured, otherwise generates one on
+ * first run and keeps it, so an internet-facing board is never left open by
+ * default and the password doesn't change every evening.
+ */
+function resolveHostPassword() {
+  const configured = (process.env.QUIZZARDS_HOST_PASSWORD ?? '').trim();
+  if (configured) return configured;
+
+  if (existsSync(PASSWORD_FILE)) {
+    const saved = readFileSync(PASSWORD_FILE, 'utf8').trim();
+    if (saved) return saved;
+  }
+
+  // Ambiguous characters left out so it can be read aloud or typed on a phone.
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const generated = Array.from({ length: 10 }, () => alphabet[randomInt(alphabet.length)]).join('');
+  mkdirSync(STATE_DIR, { recursive: true });
+  writeFileSync(PASSWORD_FILE, generated + '\n');
+  return generated;
+}
+
 /** Put text on the Windows clipboard, so the players' link is ready to paste. */
 function copyToClipboard(text) {
   if (!IS_WINDOWS) return false;
@@ -80,32 +108,39 @@ function copyToClipboard(text) {
 }
 
 function banner() {
-  const bar = '  ' + '='.repeat(58);
-  const [players] = lanAddresses();
-  const playersUrl = players ? `http://${players}:${PORT}` : null;
-  const copied = playersUrl ? copyToClipboard(playersUrl) : false;
+  const bar = '  ' + '='.repeat(62);
+  const [lan] = lanAddresses();
+  const lanUrl = lan ? `http://${lan}:${PORT}` : null;
 
-  const lines = [
-    '',
-    bar,
-    '     QUIZZARDS IS RUNNING',
-    bar,
-    '',
-    `     YOU (this PC):    http://localhost:${PORT}`,
-  ];
+  // Prefer the internet link when there is one — that's what gets shared.
+  const shareUrl = publicUrl ?? lanUrl;
+  const copied = shareUrl ? copyToClipboard(shareUrl) : false;
 
-  if (playersUrl) {
-    lines.push(`     PLAYERS (wifi):   ${playersUrl}`);
-    lines.push('');
-    lines.push(
-      copied
-        ? "     The players' link is copied — just paste it to them."
-        : "     Send the players' link to anyone on your wifi.",
-    );
-  } else {
-    lines.push('');
-    lines.push('     No network connection found, so only this PC can see it.');
+  const lines = ['', bar, '     QUIZZARDS IS RUNNING', bar, ''];
+
+  lines.push(`     YOU (this PC):     http://localhost:${PORT}`);
+  if (publicUrl) {
+    lines.push(`     PLAYERS anywhere:  ${publicUrl}`);
+    if (lanUrl) lines.push(`     Players on wifi:   ${lanUrl}`);
+  } else if (lanUrl) {
+    lines.push(`     PLAYERS on wifi:   ${lanUrl}`);
   }
+
+  lines.push('');
+  if (shareUrl && copied) {
+    lines.push("     The players' link is copied — just paste it to them.");
+  } else if (shareUrl) {
+    lines.push("     Send the players' link to anyone you want watching.");
+  } else {
+    lines.push('     No network found, so only this PC can see it.');
+  }
+
+  if (PUBLIC_LINK && !publicUrl) {
+    lines.push('     (The internet link could not start — wifi link still works.)');
+  }
+
+  lines.push('', `     HOST PASSWORD:     ${hostPassword}`);
+  lines.push('     Keep this to yourself. It is what lets you change scores.');
 
   lines.push(
     '',
@@ -160,7 +195,7 @@ function startServer() {
   server = spawn(process.execPath, [join(ROOT, 'packages', 'server', 'dist', 'index.js')], {
     cwd: ROOT,
     stdio: 'inherit',
-    env: { ...process.env, PORT, QUIZZARDS_QUIET: '1' },
+    env: { ...process.env, PORT, QUIZZARDS_QUIET: '1', QUIZZARDS_HOST_PASSWORD: hostPassword },
   });
 
   server.on('close', (code) => {
@@ -276,6 +311,7 @@ async function pullOnLaunch() {
 
 async function main() {
   await pullOnLaunch();
+  hostPassword = resolveHostPassword();
   if (!(await ensureDependencies())) process.exit(1);
 
   const hasBuild = existsSync(join(ROOT, 'packages', 'server', 'dist', 'index.js'));
@@ -285,8 +321,23 @@ async function main() {
     log('Continuing with the existing build.');
   }
 
-  banner();
+  // Start serving first so the tunnel has something to point at, and so a slow
+  // or failed tunnel never delays the local board.
   startServer();
+
+  if (PUBLIC_LINK) {
+    const binary = await ensureCloudflared(STATE_DIR, log);
+    if (binary) {
+      log('Starting your public link…');
+      const started = await startTunnel(binary, PORT, log);
+      if (started) {
+        publicUrl = started.url;
+        tunnel = started.child;
+      }
+    }
+  }
+
+  banner();
 
   if (AUTO_UPDATE) {
     if (!(await capture('git', ['rev-parse', '--git-dir']))) {
@@ -300,6 +351,7 @@ async function main() {
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     shuttingDown = true;
+    tunnel?.kill();
     void stopServer().then(() => process.exit(0));
   });
 }

@@ -18,9 +18,13 @@ export interface RoomConnection {
   canUndo: boolean;
   viewers: number;
   error: string | null;
+  /** True when the server wants a password before granting control. */
+  passwordRequired: boolean;
   dispatch: (action: BoardAction) => void;
   undo: () => void;
   dismissError: () => void;
+  /** Claim control of this board with the host password. */
+  authenticate: (password: string) => Promise<string | null>;
 }
 
 const HOST_TOKEN_PREFIX = 'quizzards:host:';
@@ -56,6 +60,7 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
   const [canUndo, setCanUndo] = useState(false);
   const [viewers, setViewers] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [passwordRequired, setPasswordRequired] = useState(false);
   const socketRef = useRef<BoardSocket | null>(null);
   /** Guards against out-of-order frames on a flaky connection. */
   const revRef = useRef(-1);
@@ -79,6 +84,7 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
         setState(result.data.state);
         setCanControl(result.data.canControl);
         setCanUndo(result.data.canUndo);
+        setPasswordRequired(Boolean(result.data.passwordRequired));
         setStatus('live');
         setError(null);
       });
@@ -115,8 +121,56 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
 
   const dismissError = useCallback(() => setError(null), []);
 
+  /**
+   * Re-join with the host password. Resolves to an error message, or null on
+   * success — the server hands back a token so this browser stays in control.
+   */
+  const authenticate = useCallback(
+    (password: string) =>
+      new Promise<string | null>((resolve) => {
+        const socket = socketRef.current;
+        if (!socket || !code) return resolve('Not connected yet — try again in a moment.');
+
+        socket.emit('join', { code, password }, (result) => {
+          if (!result.ok) return resolve(result.error);
+          if (result.data.hostToken) saveHostToken(code, result.data.hostToken);
+          revRef.current = result.data.state.rev;
+          setState(result.data.state);
+          setCanControl(result.data.canControl);
+          setCanUndo(result.data.canUndo);
+          setError(null);
+          resolve(null);
+        });
+      }),
+    [code],
+  );
+
   return useMemo(
-    () => ({ state, status, canControl, canUndo, viewers, error, dispatch, undo, dismissError }),
-    [state, status, canControl, canUndo, viewers, error, dispatch, undo, dismissError],
+    () => ({
+      state,
+      status,
+      canControl,
+      canUndo,
+      viewers,
+      error,
+      passwordRequired,
+      dispatch,
+      undo,
+      dismissError,
+      authenticate,
+    }),
+    [
+      state,
+      status,
+      canControl,
+      canUndo,
+      viewers,
+      error,
+      passwordRequired,
+      dispatch,
+      undo,
+      dismissError,
+      authenticate,
+    ],
   );
 }
