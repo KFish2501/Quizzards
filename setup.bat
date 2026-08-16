@@ -17,10 +17,13 @@ echo      QUIZZARDS - SETUP
 echo   ==========================================================
 echo.
 echo   This will:
-echo      1. Install Node.js and Git, if you don't have them
+echo      1. Install Node.js, Git and Tailscale, if you don't have them
 echo      2. Download the scoreboard to your user folder
 echo      3. Put a "Quizzards" shortcut on your Desktop
 echo      4. Start it up
+echo.
+echo   Tailscale is what gives you a web link that stays the same
+echo   every time. It is free and does not ask for card details.
 echo.
 echo   You may see a Windows permission pop-up. Click Yes.
 echo.
@@ -61,9 +64,34 @@ if errorlevel 1 goto manual_install
 :git_ok
 echo         Git is ready.
 
-rem ------------------------------------------------------------- Download it
+rem -------------------------------------------------------------- Tailscale
 echo.
-echo   [3/4] Downloading the scoreboard...
+echo   [3/5] Checking Tailscale (for your permanent link)...
+where winget >nul 2>nul
+if errorlevel 1 goto tailscale_skip
+if exist "%ProgramFiles%\Tailscale\tailscale.exe" goto tailscale_ok
+
+echo         Not found. Installing it for you...
+winget install --id tailscale.tailscale -e --silent --accept-source-agreements --accept-package-agreements
+if not exist "%ProgramFiles%\Tailscale\tailscale.exe" goto tailscale_skip
+
+:tailscale_ok
+echo         Tailscale is ready.
+echo.
+echo         A sign-in page will open in a moment. Sign in with Google
+echo         (or GitHub) - it is free and asks for no card details.
+timeout /t 3 /nobreak >nul
+start "" "%ProgramFiles%\Tailscale\tailscale.exe" up
+goto download
+
+:tailscale_skip
+echo         Skipping Tailscale - you will get a temporary link instead.
+echo         You can install it later from https://tailscale.com/download/windows
+
+rem ------------------------------------------------------------- Download it
+:download
+echo.
+echo   [4/5] Downloading the scoreboard...
 if exist "%TARGET%\.git" goto already_have_it
 
 git clone "%REPO%" "%TARGET%"
@@ -79,7 +107,7 @@ echo         Up to date: %TARGET%
 rem ----------------------------------------------------------- Shortcut + go
 :make_shortcut
 echo.
-echo   [4/4] Making your Desktop shortcut...
+echo   [5/5] Making your Desktop shortcut...
 powershell -NoProfile -Command ^
   "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Quizzards.lnk');" ^
   "$s.TargetPath='%TARGET%\START.bat';" ^

@@ -18,6 +18,7 @@ import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureCloudflared, startTunnel } from './tunnel.mjs';
+import { findTailscale, startFunnel, tailscaleStatus } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const STATE_DIR = join(ROOT, '.quizzards');
@@ -27,10 +28,20 @@ const PASSWORD_FILE = join(STATE_DIR, 'host-password.txt');
 const PORT = process.env.PORT ?? '4000';
 const AUTO_UPDATE = process.env.QUIZZARDS_AUTOUPDATE !== '0';
 const INTERVAL_SECONDS = Math.max(30, Number(process.env.QUIZZARDS_UPDATE_INTERVAL ?? 120));
-const PUBLIC_LINK = process.env.QUIZZARDS_PUBLIC === '1';
+/**
+ * How players reach the board:
+ *   permanent — Tailscale Funnel, same address every time
+ *   temporary — Cloudflare quick tunnel, new address each start
+ *   off       — this wifi only
+ * QUIZZARDS_PUBLIC=1 is still honoured as the old name for `temporary`.
+ */
+const LINK_MODE = (process.env.QUIZZARDS_LINK ?? (process.env.QUIZZARDS_PUBLIC === '1' ? 'temporary' : 'off'))
+  .trim()
+  .toLowerCase();
 const IS_WINDOWS = process.platform === 'win32';
 
 let publicUrl = null;
+let linkIsPermanent = false;
 let tunnel = null;
 let hostPassword = '';
 let server = null;
@@ -135,8 +146,14 @@ function banner() {
     lines.push('     No network found, so only this PC can see it.');
   }
 
-  if (PUBLIC_LINK && !publicUrl) {
-    lines.push('     (The internet link could not start — wifi link still works.)');
+  if (publicUrl) {
+    lines.push(
+      linkIsPermanent
+        ? '     This link is permanent — it will be the same next time.'
+        : '     This link is temporary — it changes each time you start.',
+    );
+  } else if (LINK_MODE !== 'off') {
+    lines.push('     (No internet link this time — the wifi link still works.)');
   }
 
   lines.push('', `     HOST PASSWORD:     ${hostPassword}`);
@@ -285,6 +302,68 @@ async function checkForUpdates() {
 
 // ---------------------------------------------------------------------- start
 
+/** Bring up a temporary Cloudflare link. Used directly, or as a fallback. */
+async function startTemporaryLink() {
+  const binary = await ensureCloudflared(STATE_DIR, log);
+  if (!binary) return false;
+
+  log('Starting a temporary link…');
+  const started = await startTunnel(binary, PORT, log);
+  if (!started) return false;
+
+  publicUrl = started.url;
+  tunnel = started.child;
+  linkIsPermanent = false;
+  return true;
+}
+
+/**
+ * Bring up the permanent Tailscale link, explaining precisely what's missing if
+ * it can't, then falling back to a temporary link so the quiz still has one.
+ */
+async function startPermanentLink() {
+  const binary = findTailscale();
+  if (!binary) {
+    log('Tailscale is not installed, so there is no permanent link.');
+    log('Install it from https://tailscale.com/download/windows and sign in.');
+    return false;
+  }
+
+  const { state, hostname } = await tailscaleStatus(binary);
+  if (state !== 'ready') {
+    log(
+      state === 'needs-login'
+        ? 'Tailscale is installed but not signed in — open it and sign in, then restart.'
+        : 'Tailscale is installed but not running — start it, then restart this.',
+    );
+    return false;
+  }
+
+  log('Starting your permanent link…');
+  const started = await startFunnel(binary, PORT, log, { hostname });
+  if (!started) {
+    log('Tailscale could not publish the link. The messages above say why —');
+    log('most often Funnel needs enabling once for your account.');
+    return false;
+  }
+
+  publicUrl = started.url;
+  tunnel = started.child;
+  linkIsPermanent = true;
+  return true;
+}
+
+async function startPublicLink() {
+  if (LINK_MODE === 'off') return;
+
+  if (LINK_MODE === 'permanent' || LINK_MODE === 'tailscale') {
+    if (await startPermanentLink()) return;
+    log('Falling back to a temporary link for now.');
+  }
+
+  await startTemporaryLink();
+}
+
 /** Grab the latest version at launch, so starting up is also updating. */
 async function pullOnLaunch() {
   if (!AUTO_UPDATE) return;
@@ -325,17 +404,7 @@ async function main() {
   // or failed tunnel never delays the local board.
   startServer();
 
-  if (PUBLIC_LINK) {
-    const binary = await ensureCloudflared(STATE_DIR, log);
-    if (binary) {
-      log('Starting your public link…');
-      const started = await startTunnel(binary, PORT, log);
-      if (started) {
-        publicUrl = started.url;
-        tunnel = started.child;
-      }
-    }
-  }
+  await startPublicLink();
 
   banner();
 
