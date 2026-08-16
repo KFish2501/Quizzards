@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -12,6 +13,7 @@ import {
   type ServerToClientEvents,
   isValidRoomCode,
   normalizeRoomCode,
+  restoreRoomState,
 } from '@quizzards/shared';
 import { HostAuth } from './auth.js';
 import { RoomManager } from './rooms.js';
@@ -100,10 +102,23 @@ app.post('/api/rooms', (req, res) => {
   const teamCount = Number(body?.teams ?? DEFAULT_TEAM_COUNT);
   const room = rooms.create(code, Number.isFinite(teamCount) ? teamCount : DEFAULT_TEAM_COUNT);
 
+  // A snapshot from the host's browser rebuilds a board the server lost — but
+  // only into a genuinely new room, so it can never clobber a live one.
+  let restored = false;
+  if (!alreadyExisted && (body as { restore?: unknown } | undefined)?.restore) {
+    room.state = restoreRoomState(code, (body as { restore?: unknown }).restore, {
+      now: Date.now(),
+      newId: () => randomUUID(),
+    });
+    room.history = [];
+    restored = true;
+  }
+
   res.status(alreadyExisted ? 200 : 201).json({
     code: room.state.code,
     hostToken: room.hostToken,
     reopened: alreadyExisted,
+    restored,
     state: room.state,
     maxTeams: MAX_TEAMS,
   });

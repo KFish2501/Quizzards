@@ -8,6 +8,7 @@ import {
 import { useRoom } from '../useRoom.js';
 import { EditableText } from './EditableText.js';
 import { HostLogin } from './HostLogin.js';
+import { RestoreBoard } from './RestoreBoard.js';
 import { RosterPanel } from './RosterPanel.js';
 import { TeamCard } from './TeamCard.js';
 import { Toolbar } from './Toolbar.js';
@@ -51,7 +52,8 @@ export function Scoreboard({ code, forceViewer }: ScoreboardProps) {
         <div className="notice">
           <h1>Room not found</h1>
           <p>{room.error ?? 'That board is no longer running.'}</p>
-          <a className="btn btn--accent" href="/">
+          {!forceViewer && <RestoreBoard code={code} onRestored={() => window.location.reload()} />}
+          <a className="btn" href="/">
             Back to start
           </a>
         </div>
