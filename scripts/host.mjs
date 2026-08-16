@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+/**
+ * Quizzards host supervisor.
+ *
+ * Keeps the scoreboard server running and, when enabled, watches the git
+ * remote for new commits and rolls them out without anyone touching the
+ * machine. Designed to be started by run.bat and left alone all evening.
+ *
+ * The guiding rule is that a bad push must never take a live quiz down: the
+ * running server is only stopped once new code has been installed and built
+ * successfully. If anything fails, the current build keeps serving and the
+ * updater tries again on the next cycle.
+ */
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const STATE_DIR = join(ROOT, '.quizzards');
+const LOCK_HASH_FILE = join(STATE_DIR, 'installed-lock.sha1');
+
+const PORT = process.env.PORT ?? '4000';
+const AUTO_UPDATE = process.env.QUIZZARDS_AUTOUPDATE !== '0';
+const INTERVAL_SECONDS = Math.max(30, Number(process.env.QUIZZARDS_UPDATE_INTERVAL ?? 120));
+const IS_WINDOWS = process.platform === 'win32';
+
+let server = null;
+let updating = false;
+let shuttingDown = false;
+
+const stamp = () =>
+  new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const log = (message) => console.log(`[${stamp()}] ${message}`);
+
+/** Run a command to completion. Resolves with the exit code rather than throwing. */
+function run(command, args, { quiet = false } = {}) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, args, {
+      cwd: ROOT,
+      stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+      shell: IS_WINDOWS, // npm/git are .cmd shims on Windows
+    });
+
+    let output = '';
+    child.stdout?.on('data', (chunk) => (output += chunk));
+    child.stderr?.on('data', (chunk) => (output += chunk));
+    child.on('error', () => resolvePromise({ code: 1, output }));
+    child.on('close', (code) => resolvePromise({ code: code ?? 1, output: output.trim() }));
+  });
+}
+
+async function capture(command, args) {
+  const { code, output } = await run(command, args, { quiet: true });
+  return code === 0 ? output : null;
+}
+
+/** Every LAN address this machine can be reached on, for sharing viewer links. */
+function lanAddresses() {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((nic) => nic && nic.family === 'IPv4' && !nic.internal)
+    .map((nic) => nic.address);
+}
+
+function banner() {
+  const lines = [
+    '',
+    '  Quizzards — Live Quiz Scoreboard',
+    '  ' + '-'.repeat(38),
+    `  On this PC:      http://localhost:${PORT}`,
+  ];
+  for (const address of lanAddresses()) {
+    lines.push(`  On your network: http://${address}:${PORT}`);
+  }
+  lines.push(
+    '',
+    '  Share a network link with players so they can watch on their phones.',
+    AUTO_UPDATE
+      ? `  Auto-update is ON — checking for new commits every ${INTERVAL_SECONDS}s.`
+      : '  Auto-update is OFF.',
+    '  Close this window or press Ctrl+C to stop.',
+    '',
+  );
+  console.log(lines.join('\n'));
+}
+
+// ---------------------------------------------------------------- dependencies
+
+function lockHash() {
+  const lockfile = join(ROOT, 'package-lock.json');
+  if (!existsSync(lockfile)) return null;
+  return createHash('sha1').update(readFileSync(lockfile)).digest('hex');
+}
+
+/** Install dependencies only when they are missing or the lockfile moved. */
+async function ensureDependencies() {
+  const current = lockHash();
+  const installed = existsSync(LOCK_HASH_FILE) ? readFileSync(LOCK_HASH_FILE, 'utf8').trim() : null;
+  const needsInstall = !existsSync(join(ROOT, 'node_modules')) || current !== installed;
+  if (!needsInstall) return true;
+
+  log('Installing dependencies (this can take a minute the first time)…');
+  const { code } = await run('npm', ['install', '--no-audit', '--no-fund']);
+  if (code !== 0) {
+    log('ERROR: npm install failed.');
+    return false;
+  }
+
+  mkdirSync(STATE_DIR, { recursive: true });
+  if (current) writeFileSync(LOCK_HASH_FILE, current);
+  return true;
+}
+
+async function build() {
+  log('Building…');
+  const { code } = await run('npm', ['run', 'build']);
+  if (code !== 0) {
+    log('ERROR: build failed.');
+    return false;
+  }
+  return true;
+}
+
+// --------------------------------------------------------------- server process
+
+function startServer() {
+  server = spawn(process.execPath, [join(ROOT, 'packages', 'server', 'dist', 'index.js')], {
+    cwd: ROOT,
+    stdio: 'inherit',
+    env: { ...process.env, PORT },
+  });
+
+  server.on('close', (code) => {
+    server = null;
+    if (shuttingDown || updating) return;
+    // An unexpected exit shouldn't end the quiz night — come back up.
+    log(`Server stopped unexpectedly (code ${code}). Restarting in 3s…`);
+    setTimeout(() => {
+      if (!shuttingDown) startServer();
+    }, 3000);
+  });
+}
+
+function stopServer() {
+  return new Promise((resolvePromise) => {
+    if (!server) return resolvePromise();
+    const child = server;
+    child.once('close', () => resolvePromise());
+    // SIGINT lets the server flush its room snapshot before exiting.
+    child.kill(IS_WINDOWS ? undefined : 'SIGINT');
+    setTimeout(() => child.killed || child.kill('SIGKILL'), 5000).unref?.();
+  });
+}
+
+// ------------------------------------------------------------------- updating
+
+async function currentBranch() {
+  return (await capture('git', ['rev-parse', '--abbrev-ref', 'HEAD'])) ?? 'main';
+}
+
+/**
+ * Fetch, and if the tracked branch has moved, pull it and roll the new build
+ * out. The server keeps serving the old build until the new one is ready.
+ */
+async function checkForUpdates() {
+  if (updating || shuttingDown) return;
+
+  const branch = await currentBranch();
+  const fetched = await run('git', ['fetch', 'origin', branch], { quiet: true });
+  if (fetched.code !== 0) {
+    log('Could not reach GitHub — will try again next cycle.');
+    return;
+  }
+
+  const local = await capture('git', ['rev-parse', 'HEAD']);
+  const remote = await capture('git', ['rev-parse', `origin/${branch}`]);
+  if (!local || !remote || local === remote) return;
+
+  updating = true;
+  try {
+    const subject = await capture('git', ['log', '-1', '--format=%s', `origin/${branch}`]);
+    log(`Update found: ${subject ?? remote.slice(0, 7)}`);
+
+    const pulled = await run('git', ['pull', '--ff-only', 'origin', branch]);
+    if (pulled.code !== 0) {
+      log('ERROR: could not fast-forward — you may have local changes. Skipping this update.');
+      return;
+    }
+
+    if (!(await ensureDependencies())) return;
+    if (!(await build())) {
+      log('Keeping the previous build running.');
+      return;
+    }
+
+    log('Restarting with the new version…');
+    await stopServer();
+    startServer();
+    log('Update applied. Scores were saved and reload automatically.');
+  } finally {
+    updating = false;
+    if (!server && !shuttingDown) startServer();
+  }
+}
+
+// ---------------------------------------------------------------------- start
+
+async function main() {
+  if (!(await ensureDependencies())) process.exit(1);
+
+  const hasBuild = existsSync(join(ROOT, 'packages', 'server', 'dist', 'index.js'));
+  if (!(await build())) {
+    // Nothing to fall back on the very first time, so that's fatal.
+    if (!hasBuild) process.exit(1);
+    log('Continuing with the existing build.');
+  }
+
+  banner();
+  startServer();
+
+  if (AUTO_UPDATE) {
+    if (!(await capture('git', ['rev-parse', '--git-dir']))) {
+      log('Not a git clone — auto-update disabled. Use "git clone" if you want live updates.');
+      return;
+    }
+    setInterval(() => void checkForUpdates(), INTERVAL_SECONDS * 1000);
+  }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    shuttingDown = true;
+    void stopServer().then(() => process.exit(0));
+  });
+}
+
+void main();
