@@ -27,9 +27,9 @@ export function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const open = useCallback((code: string) => {
-    window.history.pushState(null, '', `/b/${code}`);
-    setRoute({ code, forceViewer: false });
+  const open = useCallback((code: string, asViewer: boolean) => {
+    window.history.pushState(null, '', asViewer ? `/b/${code}?view=1` : `/b/${code}`);
+    setRoute({ code, forceViewer: asViewer });
   }, []);
 
   if (!route.code) return <Landing onOpen={open} />;

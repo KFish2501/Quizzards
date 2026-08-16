@@ -585,23 +585,97 @@ body {
 /* ---------- landing ---------- */
 
 .landing {
-  max-width: 620px;
+  max-width: 720px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  align-items: center;
 }
 
 .landing .subtitle {
   font-size: 16px;
-  line-height: 1.55;
+  margin-bottom: 6px;
 }
 
-.landing__form {
+/* Doubled class beats the generic .field rule below, which sets flex-grow and
+   would otherwise stretch this field down the whole column. */
+.field.landing__code {
+  flex: 0 0 auto;
+  width: 280px;
+  text-align: center;
+}
+
+.landing__code .field__label {
+  text-align: center;
+}
+
+.landing__code .input {
+  text-align: center;
+  font-size: 16px;
+}
+
+/* ---------- watch / host choice ---------- */
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.choice {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.choice--primary {
+  border-color: rgba(111, 227, 242, 0.5);
+  background: linear-gradient(180deg, rgba(111, 227, 242, 0.07), transparent 60%), var(--surface);
+}
+
+.choice__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.choice__body {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.choice__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.choice__row {
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  flex-wrap: wrap;
-  margin-top: 8px;
+}
+
+.choice__action {
+  justify-content: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 620px) {
+  .choices {
+    grid-template-columns: 1fr;
+  }
 }
 
 .field {
