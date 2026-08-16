@@ -28,18 +28,46 @@ viewer link sees every change instantly, on any device.
 This gives you a web address like `https://quizzards.onrender.com` that never changes and works
 from anywhere. Your PC doesn't need to be on.
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/KFish2501/Quizzards)
+> **Don't use Render's "Blueprint" option or a deploy button.** Blueprints need a paid Render
+> workspace and will ask for card details. Creating the service by hand, as below, stays on the
+> free plan.
 
-1. Click the button above.
-2. Sign in with GitHub and allow Render to see this repo.
-3. It asks for one thing: **QUIZZARDS_HOST_PASSWORD**. Type any password you'll remember — this is
-   what lets you change scores.
-4. Click **Apply**. First build takes about five minutes.
+1. Sign up at **[render.com](https://render.com/)** with your GitHub account.
+2. Click **New** (top right) → **Web Service**.
+3. Find **KFish2501/Quizzards** in the list and click **Connect**. If it isn't listed, click
+   *Configure account* and give Render access to the repo.
+4. Fill the form in exactly like this — everything else can stay as it is:
 
-Render shows your address at the top of the page when it's done. That's the link — bookmark it, and
-send it to players. **It stays the same forever.**
+   | Field | What to put |
+   | --- | --- |
+   | Name | `quizzards` (this becomes your web address) |
+   | Language | `Node` |
+   | Branch | `main` |
+   | Region | `Frankfurt (EU Central)` |
+   | Build Command | `npm ci --include=dev && npm run build` |
+   | Start Command | `npm start` |
+   | Instance Type | **Free** — pick this one deliberately |
+
+5. Scroll to **Environment Variables** and click **Add Environment Variable**:
+   - Key: `QUIZZARDS_HOST_PASSWORD`
+   - Value: any password you'll remember — this is what lets you change scores.
+6. Click **Deploy Web Service**. The first build takes about five minutes.
+
+Render shows your address at the top of the page when it's done, like
+`https://quizzards.onrender.com`. That's the link — bookmark it, and send it to players.
+**It stays the same forever.**
 
 Whenever I push a change, Render rebuilds and deploys it automatically.
+
+### If it still asks for payment details
+
+Free web services shouldn't. If you're being asked, check you picked **Free** as the instance type
+and that you went through **New → Web Service** rather than **New → Blueprint**.
+
+If it still insists, the app also ships a `Dockerfile`, so it runs on any host that takes one —
+[Hugging Face Spaces](https://huggingface.co/spaces) has a free Docker tier that needs no card
+(choose *Docker* as the Space SDK, and set `QUIZZARDS_HOST_PASSWORD` as a Space secret). Or skip
+cloud hosting entirely and run it from your own PC — see below.
 
 ### Two things about the free plan
 
