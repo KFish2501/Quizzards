@@ -23,7 +23,56 @@ viewer link sees every change instantly, on any device.
 - **Full screen**, for the big screen at the front of the room.
 - **Survives a restart.** Rooms are mirrored to disk, so a server hiccup doesn't lose the scores.
 
-## Quick start
+## Hosting it on a Windows PC
+
+One-time setup:
+
+1. Install [Node.js](https://nodejs.org/) (the LTS build) and [Git](https://git-scm.com/download/win).
+2. Clone the repo somewhere convenient:
+   ```
+   git clone https://github.com/KFish2501/Quizzards.git
+   ```
+3. Double-click **`run.bat`** in the `Quizzards` folder.
+
+The first run installs dependencies and builds, which takes a minute or two. After that it starts
+in a few seconds. `run.bat` prints two addresses:
+
+```
+On this PC:      http://localhost:4000
+On your network: http://192.168.1.42:4000
+```
+
+Use the first one yourself; give the **network** address to players so they can watch the
+scoreboard on their own phones over your wifi. Leave the window open while the quiz runs — closing
+it (or Ctrl+C) stops the server.
+
+### Live updates
+
+While `run.bat` is running it checks GitHub every couple of minutes. When a new commit lands on
+`main` it pulls it, rebuilds, and restarts — no action needed at your end. Scores are saved to disk
+and browsers reconnect on their own, so an update mid-quiz costs a second or two and nothing else.
+
+If a pushed commit fails to build, the update is skipped and the version you're already running
+keeps serving, so a bad push can't take a live quiz down.
+
+**`update.bat`** does the same thing immediately, for when you don't want to wait for the next
+check, or if you've turned auto-update off.
+
+### Settings
+
+Open `run.bat` in Notepad to change any of these:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `PORT` | `4000` | Port the scoreboard is served on |
+| `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop pulling updates while it runs |
+| `QUIZZARDS_UPDATE_INTERVAL` | `120` | Seconds between update checks |
+| `QUIZZARDS_OPEN_BROWSER` | `1` | Set to `0` to not open a browser on startup |
+
+If players on other devices can't reach the network address, Windows Firewall is usually the cause —
+allow Node.js on private networks when prompted, or add an inbound rule for the port.
+
+## Developing
 
 ```bash
 npm install
@@ -67,6 +116,9 @@ drifting apart.
 
 | Command | What it does |
 | --- | --- |
+| `run.bat` | Host on Windows: build, serve, and auto-update from GitHub |
+| `update.bat` | Pull, install and rebuild immediately (Windows) |
+| `npm run host` | The same supervisor `run.bat` uses, on any platform |
 | `npm run dev` | Server on `:4000`, Vite dev server on `:5173` with API/websocket proxy |
 | `npm run build` | Type-check and build all three packages |
 | `npm start` | Run the built server, which also serves the built client |
