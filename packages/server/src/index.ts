@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
@@ -31,6 +32,14 @@ const http = createServer(app);
 const io = new Server<ClientToServerEvents, ServerToClientEvents>(http, {
   cors: { origin: process.env.CORS_ORIGIN ?? true },
 });
+
+/** Every LAN address this machine can be reached on, for sharing viewer links. */
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((nic): nic is NonNullable<typeof nic> => Boolean(nic) && nic!.family === 'IPv4' && !nic!.internal)
+    .map((nic) => nic.address);
+}
 
 /** Push the current state to everyone watching a room. */
 function broadcast(code: string): void {
@@ -164,6 +173,9 @@ async function main(): Promise<void> {
 
   http.listen(PORT, () => {
     console.log(`[quizzards] scoreboard server listening on http://localhost:${PORT}`);
+    for (const address of lanAddresses()) {
+      console.log(`[quizzards] reachable on your network at http://${address}:${PORT}`);
+    }
   });
 }
 
