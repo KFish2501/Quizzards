@@ -23,54 +23,71 @@ viewer link sees every change instantly, on any device.
 - **Full screen**, for the big screen at the front of the room.
 - **Survives a restart.** Rooms are mirrored to disk, so a server hiccup doesn't lose the scores.
 
-## Hosting it on a Windows PC
+## Running it on your Windows PC
 
-One-time setup:
+### First time — do this once
 
-1. Install [Node.js](https://nodejs.org/) (the LTS build) and [Git](https://git-scm.com/download/win).
-2. Clone the repo somewhere convenient:
-   ```
-   git clone https://github.com/KFish2501/Quizzards.git
-   ```
-3. Double-click **`run.bat`** in the `Quizzards` folder.
+1. Go to **[setup.bat](https://github.com/KFish2501/Quizzards/raw/main/setup.bat)** and save the file
+   (your browser may warn about a `.bat` file — keep it).
+2. **Double-click `setup.bat`.** Click **Yes** to any Windows permission pop-up.
 
-The first run installs dependencies and builds, which takes a minute or two. After that it starts
-in a few seconds. `run.bat` prints two addresses:
+That's it. It installs what's needed, downloads the scoreboard, puts a **Quizzards** shortcut on
+your Desktop, and starts it.
+
+### Every time after that
+
+**Double-click the Quizzards shortcut on your Desktop.**
+
+A black window opens and shows you this:
 
 ```
-On this PC:      http://localhost:4000
-On your network: http://192.168.1.42:4000
+==========================================================
+   QUIZZARDS IS RUNNING
+==========================================================
+
+   YOU (this PC):    http://localhost:4000
+   PLAYERS (wifi):   http://192.168.1.42:4000
+
+   The players' link is copied — just paste it to them.
+
+   Leave this window open. Closing it stops the quiz.
+   Updates install themselves while you run.
+==========================================================
 ```
 
-Use the first one yourself; give the **network** address to players so they can watch the
-scoreboard on their own phones over your wifi. Leave the window open while the quiz runs — closing
-it (or Ctrl+C) stops the server.
+Your browser opens automatically. Send the **players' link** to anyone on your wifi — it's already
+on your clipboard, so just paste it into WhatsApp or wherever. They get a view-only board; only you
+can change scores.
 
-### Live updates
+**Leave the black window open** for the whole quiz. Closing it stops everything. Scores are saved,
+so if it does get closed, opening it again picks up where you left off.
 
-While `run.bat` is running it checks GitHub every couple of minutes. When a new commit lands on
-`main` it pulls it, rebuilds, and restarts — no action needed at your end. Scores are saved to disk
-and browsers reconnect on their own, so an update mid-quiz costs a second or two and nothing else.
+### Updates happen by themselves
 
-If a pushed commit fails to build, the update is skipped and the version you're already running
-keeps serving, so a bad push can't take a live quiz down.
+Every time you start it, and every couple of minutes while it runs, it fetches the latest version
+and installs it. You don't have to do anything. If an update ever fails, it keeps running the
+version you already have, so nothing breaks mid-quiz.
 
-**`update.bat`** does the same thing immediately, for when you don't want to wait for the next
-check, or if you've turned auto-update off.
+### If something goes wrong
+
+| What you see | What to do |
+| --- | --- |
+| Players can't open the link | Windows Firewall — click **Allow** when it asks about Node.js. If you missed it, restart the PC and try again. |
+| "Node.js isn't installed" | Run `setup.bat` again. |
+| The window closed by itself | Just open the Desktop shortcut again. Your scores are saved. |
+| Something else | Screenshot the black window and send it on. |
 
 ### Settings
 
-Open `run.bat` in Notepad to change any of these:
+You almost certainly don't need these. To change one, right-click `START.bat` in the Quizzards
+folder, pick **Edit**, and change the number near the top.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `4000` | Port the scoreboard is served on |
-| `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop pulling updates while it runs |
+| `QUIZZARDS_AUTOUPDATE` | `1` | Set to `0` to stop updates while it runs |
 | `QUIZZARDS_UPDATE_INTERVAL` | `120` | Seconds between update checks |
 | `QUIZZARDS_OPEN_BROWSER` | `1` | Set to `0` to not open a browser on startup |
-
-If players on other devices can't reach the network address, Windows Firewall is usually the cause —
-allow Node.js on private networks when prompted, or add an inbound rule for the port.
 
 ## Developing
 
@@ -116,9 +133,9 @@ drifting apart.
 
 | Command | What it does |
 | --- | --- |
-| `run.bat` | Host on Windows: build, serve, and auto-update from GitHub |
-| `update.bat` | Pull, install and rebuild immediately (Windows) |
-| `npm run host` | The same supervisor `run.bat` uses, on any platform |
+| `setup.bat` | One-time Windows setup: installs prerequisites, clones, makes a shortcut |
+| `START.bat` | Host on Windows: update, build, serve, and keep updating |
+| `npm run host` | The same supervisor `START.bat` uses, on any platform |
 | `npm run dev` | Server on `:4000`, Vite dev server on `:5173` with API/websocket proxy |
 | `npm run build` | Type-check and build all three packages |
 | `npm start` | Run the built server, which also serves the built client |

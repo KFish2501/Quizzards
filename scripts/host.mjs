@@ -67,23 +67,51 @@ function lanAddresses() {
     .map((nic) => nic.address);
 }
 
+/** Put text on the Windows clipboard, so the players' link is ready to paste. */
+function copyToClipboard(text) {
+  if (!IS_WINDOWS) return false;
+  try {
+    const child = spawn('clip', { shell: true, stdio: ['pipe', 'ignore', 'ignore'] });
+    child.stdin.end(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function banner() {
+  const bar = '  ' + '='.repeat(58);
+  const [players] = lanAddresses();
+  const playersUrl = players ? `http://${players}:${PORT}` : null;
+  const copied = playersUrl ? copyToClipboard(playersUrl) : false;
+
   const lines = [
     '',
-    '  Quizzards — Live Quiz Scoreboard',
-    '  ' + '-'.repeat(38),
-    `  On this PC:      http://localhost:${PORT}`,
+    bar,
+    '     QUIZZARDS IS RUNNING',
+    bar,
+    '',
+    `     YOU (this PC):    http://localhost:${PORT}`,
   ];
-  for (const address of lanAddresses()) {
-    lines.push(`  On your network: http://${address}:${PORT}`);
+
+  if (playersUrl) {
+    lines.push(`     PLAYERS (wifi):   ${playersUrl}`);
+    lines.push('');
+    lines.push(
+      copied
+        ? "     The players' link is copied — just paste it to them."
+        : "     Send the players' link to anyone on your wifi.",
+    );
+  } else {
+    lines.push('');
+    lines.push('     No network connection found, so only this PC can see it.');
   }
+
   lines.push(
     '',
-    '  Share a network link with players so they can watch on their phones.',
-    AUTO_UPDATE
-      ? `  Auto-update is ON — checking for new commits every ${INTERVAL_SECONDS}s.`
-      : '  Auto-update is OFF.',
-    '  Close this window or press Ctrl+C to stop.',
+    '     Leave this window open. Closing it stops the quiz.',
+    AUTO_UPDATE ? '     Updates install themselves while you run.' : '     Auto-update is off.',
+    bar,
     '',
   );
   console.log(lines.join('\n'));
@@ -132,7 +160,7 @@ function startServer() {
   server = spawn(process.execPath, [join(ROOT, 'packages', 'server', 'dist', 'index.js')], {
     cwd: ROOT,
     stdio: 'inherit',
-    env: { ...process.env, PORT },
+    env: { ...process.env, PORT, QUIZZARDS_QUIET: '1' },
   });
 
   server.on('close', (code) => {
@@ -222,7 +250,32 @@ async function checkForUpdates() {
 
 // ---------------------------------------------------------------------- start
 
+/** Grab the latest version at launch, so starting up is also updating. */
+async function pullOnLaunch() {
+  if (!AUTO_UPDATE) return;
+  if (!(await capture('git', ['rev-parse', '--git-dir']))) return;
+
+  const branch = await currentBranch();
+  log('Checking for the latest version…');
+  const fetched = await run('git', ['fetch', 'origin', branch], { quiet: true });
+  if (fetched.code !== 0) {
+    log('No internet — starting the version you already have.');
+    return;
+  }
+
+  const local = await capture('git', ['rev-parse', 'HEAD']);
+  const remote = await capture('git', ['rev-parse', `origin/${branch}`]);
+  if (!local || !remote || local === remote) {
+    log('Already up to date.');
+    return;
+  }
+
+  const pulled = await run('git', ['pull', '--ff-only', 'origin', branch], { quiet: true });
+  log(pulled.code === 0 ? 'Updated to the latest version.' : 'Could not update — starting anyway.');
+}
+
 async function main() {
+  await pullOnLaunch();
   if (!(await ensureDependencies())) process.exit(1);
 
   const hasBuild = existsSync(join(ROOT, 'packages', 'server', 'dist', 'index.js'));
