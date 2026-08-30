@@ -42,6 +42,8 @@ const IS_WINDOWS = process.platform === 'win32';
 
 let publicUrl = null;
 let linkIsPermanent = false;
+/** False when this folder isn't a git clone, so it can never update itself. */
+let canAutoUpdate = false;
 let tunnel = null;
 let hostPassword = '';
 let server = null;
@@ -172,13 +174,23 @@ function banner() {
   lines.push('', `     HOST PASSWORD:     ${hostPassword}`);
   lines.push('     Keep this to yourself. It is what lets you change scores.');
 
-  lines.push(
-    '',
-    '     Leave this window open. Closing it stops the quiz.',
-    AUTO_UPDATE ? '     Updates install themselves while you run.' : '     Auto-update is off.',
-    bar,
-    '',
-  );
+  lines.push('', '     Leave this window open. Closing it stops the quiz.');
+
+  if (!AUTO_UPDATE) {
+    lines.push('     Auto-update is off.');
+  } else if (canAutoUpdate) {
+    lines.push('     Updates install themselves while you run.');
+  } else {
+    lines.push(
+      '',
+      '     !! THIS COPY CANNOT UPDATE ITSELF !!',
+      '     You are running an unzipped download, not an installed copy,',
+      '     so you will never get new features or fixes. Close this and',
+      '     run setup.bat once to fix it for good.',
+    );
+  }
+
+  lines.push(bar, '');
   console.log(lines.join('\n'));
 }
 
@@ -382,8 +394,7 @@ async function startPublicLink() {
 
 /** Grab the latest version at launch, so starting up is also updating. */
 async function pullOnLaunch() {
-  if (!AUTO_UPDATE) return;
-  if (!(await capture('git', ['rev-parse', '--git-dir']))) return;
+  if (!AUTO_UPDATE || !canAutoUpdate) return;
 
   const branch = await currentBranch();
   log('Checking for the latest version…');
@@ -405,6 +416,7 @@ async function pullOnLaunch() {
 }
 
 async function main() {
+  canAutoUpdate = Boolean(await capture('git', ['rev-parse', '--git-dir']));
   await pullOnLaunch();
   hostPassword = resolveHostPassword();
   if (!(await ensureDependencies())) process.exit(1);
@@ -424,11 +436,8 @@ async function main() {
 
   banner();
 
-  if (AUTO_UPDATE) {
-    if (!(await capture('git', ['rev-parse', '--git-dir']))) {
-      log('Not a git clone — auto-update disabled. Use "git clone" if you want live updates.');
-      return;
-    }
+  // The banner already says loudly when updating isn't possible.
+  if (AUTO_UPDATE && canAutoUpdate) {
     setInterval(() => void checkForUpdates(), INTERVAL_SECONDS * 1000);
   }
 }
