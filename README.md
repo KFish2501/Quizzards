@@ -20,6 +20,9 @@ viewer link sees every change instantly, on any device.
 - **Editable everywhere.** Board title, subtitle and team names are click-to-edit.
 - **Viewer links.** *Copy viewer link* produces a read-only URL for the projector or the audience —
   it has no controls and can't change anything.
+- **A buzzer.** Watchers type their name and get a big BUZZ button. The host opens and closes it per
+  question, and everyone sees the order live — who was first, and how far behind the rest were.
+  Ordering is decided by the server, so it doesn't matter whose phone clock is wrong.
 - **Full screen**, for the big screen at the front of the room.
 - **Survives a restart.** Rooms are mirrored to disk, so a server hiccup doesn't lose the scores.
 

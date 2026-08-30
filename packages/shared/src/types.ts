@@ -15,6 +15,15 @@ export interface Player {
   teamId: string | null;
 }
 
+/** One person's press, in the order the server received it. */
+export interface Buzz {
+  /** Stable per-browser id, so one person can't stack up presses. */
+  buzzerId: string;
+  name: string;
+  /** Server clock, so ordering doesn't depend on anyone's device. */
+  at: number;
+}
+
 /** The complete, authoritative state of one scoreboard room. */
 export interface RoomState {
   /** Human-friendly room code used in URLs, e.g. `quiz-night`. */
@@ -31,6 +40,10 @@ export interface RoomState {
   players: Player[];
   /** When true, cards are displayed highest-score-first instead of in entry order. */
   sortByScore: boolean;
+  /** Presses for the current question, earliest first. */
+  buzzers: Buzz[];
+  /** When true the buzzer accepts presses; the host opens and closes it. */
+  buzzersOpen: boolean;
   /** Monotonic revision, bumped on every mutation. Lets clients drop stale frames. */
   rev: number;
   updatedAt: number;

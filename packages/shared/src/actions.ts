@@ -32,7 +32,11 @@ export type BoardAction =
   | { type: 'assignPlayer'; playerId: string; teamId: string | null }
   | { type: 'autoAssign'; includeAssigned?: boolean }
   | { type: 'unassignAll' }
-  | { type: 'clearRoster' };
+  | { type: 'clearRoster' }
+  // --- buzzer ---
+  | { type: 'openBuzzers' }
+  | { type: 'closeBuzzers' }
+  | { type: 'clearBuzzers' };
 
 /** Actions that change scores or membership, and so are worth an undo entry. */
 const UNDOABLE = new Set<BoardAction['type']>([
@@ -136,6 +140,16 @@ export function applyAction(
 
       case 'toggleSort':
         return { ...state, sortByScore: !state.sortByScore };
+
+      // Opening always starts a fresh round, so nobody inherits a stale press.
+      case 'openBuzzers':
+        return { ...state, buzzersOpen: true, buzzers: [] };
+
+      case 'closeBuzzers':
+        return { ...state, buzzersOpen: false };
+
+      case 'clearBuzzers':
+        return { ...state, buzzers: [] };
 
       case 'addPlayers': {
         if (typeof action.names !== 'string') {
@@ -257,6 +271,8 @@ export function createRoomState(
     })),
     players: [],
     sortByScore: false,
+    buzzers: [],
+    buzzersOpen: false,
     rev: 0,
     updatedAt: ctx.now,
   };

@@ -25,9 +25,46 @@ export interface RoomConnection {
   dismissError: () => void;
   /** Claim control of this board with the host password. */
   authenticate: (password: string) => Promise<string | null>;
+  /** Press the buzzer. Resolves to an error message, or null when it counted. */
+  buzz: (name: string) => Promise<string | null>;
 }
 
 const HOST_TOKEN_PREFIX = 'quizzards:host:';
+const BUZZER_ID_KEY = 'quizzards:buzzer-id';
+const BUZZER_NAME_KEY = 'quizzards:buzzer-name';
+
+/**
+ * A stable id for this browser, so the server can tell one person pressing
+ * twice from two people pressing once. Regenerated only if storage is cleared.
+ */
+export function buzzerId(): string {
+  try {
+    const existing = localStorage.getItem(BUZZER_ID_KEY);
+    if (existing) return existing;
+    const created = `bz-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    localStorage.setItem(BUZZER_ID_KEY, created);
+    return created;
+  } catch {
+    // Private browsing: a per-session id still works for one sitting.
+    return `bz-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+export function readBuzzerName(): string {
+  try {
+    return localStorage.getItem(BUZZER_NAME_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveBuzzerName(name: string): void {
+  try {
+    localStorage.setItem(BUZZER_NAME_KEY, name);
+  } catch {
+    /* nothing to do */
+  }
+}
 const BACKUP_PREFIX = 'quizzards:backup:';
 
 /**
@@ -158,6 +195,18 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
 
   const dismissError = useCallback(() => setError(null), []);
 
+  const buzz = useCallback(
+    (name: string) =>
+      new Promise<string | null>((resolve) => {
+        const socket = socketRef.current;
+        if (!socket) return resolve('Not connected — try again in a moment.');
+        socket.emit('buzz', { buzzerId: buzzerId(), name }, (result) =>
+          resolve(result.ok ? null : result.error),
+        );
+      }),
+    [],
+  );
+
   /**
    * Re-join with the host password. Resolves to an error message, or null on
    * success — the server hands back a token so this browser stays in control.
@@ -195,6 +244,7 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
       undo,
       dismissError,
       authenticate,
+      buzz,
     }),
     [
       state,
@@ -208,6 +258,7 @@ export function useRoom(code: string | null, asViewer: boolean): RoomConnection 
       undo,
       dismissError,
       authenticate,
+      buzz,
     ],
   );
 }

@@ -11,9 +11,11 @@ import {
   InvalidActionError,
   MAX_TEAMS,
   type ServerToClientEvents,
+  addBuzz,
   isValidRoomCode,
   normalizeRoomCode,
   restoreRoomState,
+  sanitizeBuzzerName,
 } from '@quizzards/shared';
 import { HostAuth } from './auth.js';
 import { RoomManager } from './rooms.js';
@@ -214,6 +216,49 @@ io.on('connection', (socket) => {
     } catch (error) {
       socket.emit('actionError', {
         message: error instanceof InvalidActionError ? error.message : 'Undo failed.',
+      });
+    }
+  });
+
+  /**
+   * Buzzing is open to everyone in the room, host or not — that is the whole
+   * point of it. The server stamps the time and appends, so the winner is
+   * decided by arrival here rather than by anyone's device clock.
+   */
+  socket.on('buzz', (payload, ack) => {
+    const room = joined ? rooms.get(joined) : undefined;
+    if (!room) {
+      ack?.({ ok: false, error: 'You are not on a board.' });
+      return;
+    }
+
+    try {
+      const name = sanitizeBuzzerName(payload?.name);
+      const buzzerId = String(payload?.buzzerId ?? '').slice(0, 64);
+      if (!buzzerId) {
+        ack?.({ ok: false, error: 'Could not identify this device.' });
+        return;
+      }
+
+      const buzzers = addBuzz(room.state.buzzers, { buzzerId, name, at: Date.now() }, {
+        open: room.state.buzzersOpen,
+      });
+      if (!buzzers) {
+        ack?.({
+          ok: false,
+          error: room.state.buzzersOpen ? 'You have already buzzed.' : 'The buzzer is closed.',
+        });
+        return;
+      }
+
+      // Bump rev so clients treat this like any other state change.
+      room.state = { ...room.state, buzzers, rev: room.state.rev + 1, updatedAt: Date.now() };
+      ack?.({ ok: true, place: buzzers.length });
+      broadcast(joined!);
+    } catch (error) {
+      ack?.({
+        ok: false,
+        error: error instanceof InvalidActionError ? error.message : 'Could not register that buzz.',
       });
     }
   });
