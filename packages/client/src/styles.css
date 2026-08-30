@@ -787,3 +787,170 @@ body {
     transition: none !important;
   }
 }
+
+/* ---------- buzzer ---------- */
+
+.buzzer {
+  background: rgba(16, 28, 47, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.buzzer--open {
+  border-color: rgba(61, 220, 151, 0.45);
+  box-shadow: 0 0 0 1px rgba(61, 220, 151, 0.12);
+}
+
+.buzzer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.buzzer__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.buzzer__state {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--border-hi);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.buzzer__state--open {
+  color: var(--positive);
+  border-color: rgba(61, 220, 151, 0.5);
+  background: rgba(61, 220, 151, 0.1);
+}
+
+.buzzer__controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.buzzer__me {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.buzzer__name {
+  max-width: 260px;
+}
+
+/* Big, thumb-friendly: on a phone this is the only control a watcher has. */
+.buzzer__button {
+  appearance: none;
+  border: 0;
+  border-radius: 16px;
+  padding: 26px 20px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #06231a;
+  background: linear-gradient(180deg, #4ef0ab, #2bbd82);
+  cursor: pointer;
+  box-shadow: 0 6px 0 #1c8a5f;
+  transition: transform 60ms ease, box-shadow 60ms ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.buzzer__button:active:not(:disabled) {
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 #1c8a5f;
+}
+
+.buzzer__button:disabled {
+  background: var(--surface-hi);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.buzzer__button--done:disabled {
+  background: rgba(61, 220, 151, 0.16);
+  color: var(--positive);
+  border: 1px solid rgba(61, 220, 151, 0.4);
+}
+
+.buzzer__error {
+  margin: 0;
+  color: var(--negative);
+  font-size: 13px;
+}
+
+.buzzer__hint,
+.buzzer__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.buzzlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.buzzlist__item {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.buzzlist__item--first {
+  border-color: var(--leader);
+  background: linear-gradient(90deg, rgba(217, 161, 58, 0.14), transparent 45%), var(--surface);
+}
+
+.buzzlist__item--me {
+  outline: 1px solid rgba(111, 227, 242, 0.45);
+}
+
+.buzzlist__place {
+  font-weight: 800;
+  color: var(--muted);
+  text-align: center;
+}
+
+.buzzlist__item--first .buzzlist__place {
+  color: var(--leader-ink);
+}
+
+.buzzlist__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.buzzlist__gap {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}

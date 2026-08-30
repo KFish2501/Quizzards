@@ -16,6 +16,14 @@ export interface ClientToServerEvents {
   ) => void;
   action: (payload: { action: BoardAction }) => void;
   undo: () => void;
+  /**
+   * The one thing a viewer may send. Everything else is host-only, so this is
+   * deliberately its own event rather than another BoardAction.
+   */
+  buzz: (
+    payload: { buzzerId: string; name: string },
+    ack: (result: { ok: true; place: number } | { ok: false; error: string }) => void,
+  ) => void;
 }
 
 /** Room codes are lowercase words joined by single hyphens. */

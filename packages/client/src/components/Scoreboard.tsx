@@ -1,14 +1,15 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   MAX_SUBTITLE_LENGTH,
   MAX_TEAMS,
   MAX_TITLE_LENGTH,
   displayOrder,
 } from '@quizzards/shared';
-import { useRoom } from '../useRoom.js';
+import { buzzerId, readBuzzerName, saveBuzzerName, useRoom } from '../useRoom.js';
 import { EditableText } from './EditableText.js';
 import { HostLogin } from './HostLogin.js';
 import { RestoreBoard } from './RestoreBoard.js';
+import { Buzzer } from './Buzzer.js';
 import { RosterPanel } from './RosterPanel.js';
 import { TeamCard } from './TeamCard.js';
 import { Toolbar } from './Toolbar.js';
@@ -24,6 +25,9 @@ export function Scoreboard({ code, forceViewer }: ScoreboardProps) {
   const editable = room.canControl && !forceViewer;
 
   const teams = useMemo(() => (state ? displayOrder(state) : []), [state]);
+
+  const myBuzzerId = useMemo(() => buzzerId(), []);
+  const [buzzerName, setBuzzerName] = useState(readBuzzerName);
 
   const viewerUrl = useMemo(() => {
     const url = new URL(window.location.href);
@@ -112,6 +116,21 @@ export function Scoreboard({ code, forceViewer }: ScoreboardProps) {
           if (window.confirm('Set every score back to zero?')) dispatch({ type: 'resetScores' });
         }}
         onAddTeam={() => dispatch({ type: 'addTeam' })}
+      />
+
+      <Buzzer
+        state={state}
+        canControl={editable}
+        myBuzzerId={myBuzzerId}
+        name={buzzerName}
+        onNameChange={(value) => {
+          setBuzzerName(value);
+          saveBuzzerName(value);
+        }}
+        onBuzz={() => room.buzz(buzzerName)}
+        onOpen={() => dispatch({ type: 'openBuzzers' })}
+        onClose={() => dispatch({ type: 'closeBuzzers' })}
+        onClear={() => dispatch({ type: 'clearBuzzers' })}
       />
 
       {editable && <RosterPanel state={state} dispatch={dispatch} />}

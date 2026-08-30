@@ -47,6 +47,9 @@ export function restoreRoomState(
     teams,
     players,
     sortByScore: raw.sortByScore === true,
+    // Presses belong to a moment, not a board — a restore starts clean.
+    buzzers: [],
+    buzzersOpen: false,
     rev: 0,
     updatedAt: ctx.now,
   };
