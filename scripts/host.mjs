@@ -54,14 +54,27 @@ const stamp = () =>
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const log = (message) => console.log(`[${stamp()}] ${message}`);
 
-/** Run a command to completion. Resolves with the exit code rather than throwing. */
+/**
+ * Run a command to completion. Resolves with the exit code rather than throwing.
+ *
+ * On Windows npm is a .cmd shim, which Node will only launch through a shell.
+ * The whole line is passed as one string in that case, because passing a shell
+ * an args array is deprecated (DEP0190) — every argument here is a literal, so
+ * there is nothing to escape.
+ */
 function run(command, args, { quiet = false } = {}) {
+  const viaShell = IS_WINDOWS && command === 'npm';
   return new Promise((resolvePromise) => {
-    const child = spawn(command, args, {
-      cwd: ROOT,
-      stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit',
-      shell: IS_WINDOWS, // npm/git are .cmd shims on Windows
-    });
+    const child = viaShell
+      ? spawn([command, ...args].join(' '), {
+          cwd: ROOT,
+          stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+          shell: true,
+        })
+      : spawn(command, args, {
+          cwd: ROOT,
+          stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+        });
 
     let output = '';
     child.stdout?.on('data', (chunk) => (output += chunk));
@@ -185,9 +198,10 @@ async function ensureDependencies() {
   if (!needsInstall) return true;
 
   log('Installing dependencies (this can take a minute the first time)…');
-  const { code } = await run('npm', ['install', '--no-audit', '--no-fund']);
+  const { code, output } = await run('npm', ['install', '--no-audit', '--no-fund'], { quiet: true });
   if (code !== 0) {
-    log('ERROR: npm install failed.');
+    log('ERROR: could not install dependencies:');
+    console.log(output);
     return false;
   }
 
@@ -198,9 +212,11 @@ async function ensureDependencies() {
 
 async function build() {
   log('Building…');
-  const { code } = await run('npm', ['run', 'build']);
+  const { code, output } = await run('npm', ['run', 'build'], { quiet: true });
   if (code !== 0) {
-    log('ERROR: build failed.');
+    // Only worth showing when it breaks; otherwise it buries the banner.
+    log('ERROR: build failed:');
+    console.log(output);
     return false;
   }
   return true;
